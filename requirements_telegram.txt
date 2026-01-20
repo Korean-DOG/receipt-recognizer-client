@@ -1,0 +1,5 @@
+# Включает все из requirements.txt
+-r requirements.txt
+
+# Telegram специфичные зависимости
+python-telegram-bot[job-queue]>=20.8
