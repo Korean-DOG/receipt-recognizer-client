@@ -73,7 +73,8 @@ class ReceiptRecognizerClient:
 
         return standardized
 
-    def _extract_field(self, data: Dict, *possible_keys: str) -> Optional[Any]:
+    @staticmethod
+    def _extract_field(data: Dict, *possible_keys: str) -> Optional[Any]:
         """Извлекает поле по нескольким возможным ключам"""
         for key in possible_keys:
             if key in data:
@@ -100,6 +101,7 @@ class ReceiptRecognizerClient:
             return value.isoformat()
         return str(value)
 
-    def validate_fields(self, result: Dict[str, Any]) -> bool:
+    @staticmethod
+    def validate_fields(result: Dict[str, Any]) -> bool:
         """Проверяет наличие всех обязательных полей"""
         return all(field in result and result[field] is not None for field in BASE_FIELDS)

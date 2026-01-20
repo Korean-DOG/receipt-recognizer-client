@@ -7,7 +7,6 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Optional
 
 from .client import ReceiptRecognizerClient
 from .exceptions import APIError, ValidationError, VersionMismatchError

@@ -5,6 +5,8 @@
 # Версия клиентской библиотеки
 __version__ = "1.0.0"
 
+from receipt_recognizer import VersionMismatchError
+
 # Минимальная поддерживаемая версия сервера
 MIN_SERVER_VERSION = "1.0.0"
 

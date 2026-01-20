@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 from .constants import BASE_FIELDS
 from .exceptions import APIError, ValidationError, VersionMismatchError
-from .version import __version__, MIN_SERVER_VERSION, check_compatibility
+from .version import __version__, check_compatibility
 
 
 class ReceiptRecognizerClient:
@@ -138,7 +138,8 @@ class ReceiptRecognizerClient:
         except json.JSONDecodeError as e:
             raise APIError(f"Invalid JSON response: {str(e)}")
 
-    def _validate_result(self, result: Dict[str, Any]):
+    @staticmethod
+    def _validate_result(result: Dict[str, Any]):
         """Проверяет наличие обязательных полей в результате"""
         missing_fields = []
 
