@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 from .client import ReceiptRecognizerClient
-from .exceptions import APIError, ValidationError, VersionMismatchError
+from .pdf_processor import PDFProcessor, process_receipt_pdf
 from .version import __version__
 
 
@@ -30,12 +30,12 @@ def main():
     # Команда recognize
     recognize_parser = subparsers.add_parser(
         "recognize",
-        help="Распознать чек из изображения",
+        help="Распознать чек из файла (PDF или изображение)",
     )
     recognize_parser.add_argument(
-        "image_path",
+        "file_path",
         type=Path,
-        help="Путь к изображению чека",
+        help="Путь к файлу (PDF, JPG, PNG)",
     )
     recognize_parser.add_argument(
         "--output",
@@ -48,26 +48,26 @@ def main():
         action="store_true",
         help="Красиво форматировать вывод",
     )
-
-    # Команда check-version
-    version_parser = subparsers.add_parser(
-        "check-version",
-        help="Проверить совместимость версий",
-    )
-    version_parser.add_argument(
-        "server_version",
-        help="Версия сервера (например, 1.2.0)",
+    recognize_parser.add_argument(
+        "--local",
+        action="store_true",
+        help="Обработать PDF локально (без отправки на сервер)",
     )
 
-    # Команда validate
-    validate_parser = subparsers.add_parser(
-        "validate",
-        help="Валидировать JSON результат",
+    # Команда check-pdf
+    pdf_parser = subparsers.add_parser(
+        "check-pdf",
+        help="Проверить PDF файл",
     )
-    validate_parser.add_argument(
-        "json_file",
+    pdf_parser.add_argument(
+        "pdf_path",
         type=Path,
-        help="Путь к JSON файлу с результатом",
+        help="Путь к PDF файлу",
+    )
+    pdf_parser.add_argument(
+        "--extract-text",
+        action="store_true",
+        help="Извлечь и показать текст",
     )
 
     args = parser.parse_args()
@@ -79,10 +79,8 @@ def main():
     try:
         if args.command == "recognize":
             recognize_command(args)
-        elif args.command == "check-version":
-            check_version_command(args)
-        elif args.command == "validate":
-            validate_command(args)
+        elif args.command == "check-pdf":
+            check_pdf_command(args)
 
     except Exception as e:
         print(f"Ошибка: {e}", file=sys.stderr)
@@ -91,37 +89,20 @@ def main():
 
 def recognize_command(args):
     """Обработка команды recognize"""
-    # Загружаем настройки из переменных окружения
-    import os
-
-    api_url = os.getenv("RECEIPT_RECOGNIZER_API_URL")
-    client_token = os.getenv("CLIENT_TOKEN")
-
-    if not api_url or not client_token:
-        print(
-            "Ошибка: Не установлены переменные окружения\n"
-            "Установите:\n"
-            "  RECEIPT_RECOGNIZER_API_URL - URL API сервера\n"
-            "  CLIENT_TOKEN - токен клиента",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
     # Проверяем существование файла
-    if not args.image_path.exists():
-        print(f"Ошибка: Файл не найден: {args.image_path}", file=sys.stderr)
+    if not args.file_path.exists():
+        print(f"Ошибка: Файл не найден: {args.file_path}", file=sys.stderr)
         sys.exit(1)
 
     # Создаем клиент
     client = ReceiptRecognizerClient(
-        api_url=api_url,
-        client_token=client_token,
+        process_pdf_locally=args.local or args.file_path.suffix.lower() == '.pdf'
     )
 
     try:
         # Распознаем чек
-        print(f"Распознаю чек из {args.image_path}...", file=sys.stderr)
-        result = client.recognize(args.image_path)
+        print(f"Распознаю чек из {args.file_path}...", file=sys.stderr)
+        result = client.recognize(args.file_path)
 
         # Форматируем вывод
         if args.pretty:
@@ -136,46 +117,40 @@ def recognize_command(args):
         else:
             print(output)
 
-    except APIError as e:
-        print(f"Ошибка API: {e}", file=sys.stderr)
-        sys.exit(1)
-    except ValidationError as e:
-        print(f"Ошибка валидации: {e}", file=sys.stderr)
+    except Exception as e:
+        print(f"Ошибка: {e}", file=sys.stderr)
         sys.exit(1)
 
 
-def check_version_command(args):
-    """Обработка команды check-version"""
-    from .version import check_compatibility
+def check_pdf_command(args):
+    """Обработка команды check-pdf"""
+    if not args.pdf_path.exists():
+        print(f"Ошибка: Файл не найден: {args.pdf_path}", file=sys.stderr)
+        sys.exit(1)
 
     try:
-        check_compatibility(__version__, args.server_version)
-        print(f"✓ Версии совместимы: клиент {__version__}, сервер {args.server_version}")
-    except VersionMismatchError as e:
-        print(f"✗ {e}", file=sys.stderr)
-        sys.exit(1)
+        # Проверяем PDF
+        is_searchable = PDFProcessor.is_searchable_pdf(args.pdf_path)
 
-
-def validate_command(args):
-    """Обработка команды validate"""
-    from .constants import BASE_FIELDS
-
-    try:
-        data = json.loads(args.json_file.read_text())
-
-        missing_fields = []
-        for field in BASE_FIELDS:
-            if field not in data or data[field] is None:
-                missing_fields.append(field)
-
-        if missing_fields:
-            print(f"✗ Отсутствуют обязательные поля: {', '.join(missing_fields)}")
-            sys.exit(1)
+        if args.extract_text:
+            text = PDFProcessor.extract_text_from_pdf(args.pdf_path)
+            print(f"Текст из PDF ({'поисковый' if is_searchable else 'скан'}):")
+            print("-" * 50)
+            print(text[:1000])  # Первые 1000 символов
+            if len(text) > 1000:
+                print(f"\n... и ещё {len(text) - 1000} символов")
         else:
-            print("✓ JSON содержит все обязательные поля")
+            print(f"PDF файл: {args.pdf_path}")
+            print(f"Содержит текст: {'Да' if is_searchable else 'Нет (требуется OCR)'}")
 
-    except json.JSONDecodeError as e:
-        print(f"✗ Невалидный JSON: {e}", file=sys.stderr)
+            if is_searchable:
+                # Быстрый анализ
+                result = process_receipt_pdf(args.pdf_path, use_patterns=False)
+                print(f"Количество страниц: {len(result.get('positioned_text', []))}")
+                print(f"Пример текста: {result.get('full_text', '')[:200]}...")
+
+    except Exception as e:
+        print(f"Ошибка: {e}", file=sys.stderr)
         sys.exit(1)
 
 
