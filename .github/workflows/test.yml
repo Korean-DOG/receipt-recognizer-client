@@ -24,4 +24,6 @@ jobs:
         pip install -e .
         pip install pytest
         python -c "import receipt_recognizer; print(f'✓ Version: {receipt_recognizer.__version__}')"
-        pytest tests/ -v
+        python -c "from receipt_recognizer import ReceiptRecognizerClient; print('✓ Client imports')"
+        python -c "from receipt_recognizer.constants import BASE_FIELDS; print(f'✓ {len(BASE_FIELDS)} base fields')"
+        pytest tests/ -v --tb=short
