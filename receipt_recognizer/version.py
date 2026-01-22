@@ -5,8 +5,6 @@
 # Версия клиентской библиотеки
 __version__ = "1.0.0"
 
-from receipt_recognizer import VersionMismatchError
-
 # Минимальная поддерживаемая версия сервера
 MIN_SERVER_VERSION = "1.0.0"
 
@@ -14,7 +12,7 @@ MIN_SERVER_VERSION = "1.0.0"
 API_VERSION = "v1"
 
 
-def check_compatibility(client_version, server_version):
+def check_compatibility(client_version: str, server_version: str) -> bool:
     """
     Проверяет совместимость версий
 
@@ -26,21 +24,17 @@ def check_compatibility(client_version, server_version):
         bool: True если совместимы
 
     Raises:
-        VersionMismatchError: Если версии несовместимы
+        Exception: Если версии несовместимы
     """
     # Простая проверка: major версия должна совпадать
     client_major = client_version.split('.')[0]
     server_major = server_version.split('.')[0]
 
     if client_major != server_major:
-        raise VersionMismatchError(
-            client_version=client_version,
-            server_version=server_version,
-            message=(
-                f"Incompatible versions. Client v{client_major}.x.x "
-                f"cannot work with server v{server_major}.x.x. "
-                f"Please install matching version."
-            )
+        raise Exception(
+            f"Несовместимые версии. Клиент v{client_major}.x.x "
+            f"не может работать с сервером v{server_major}.x.x. "
+            f"Установите подходящую версию."
         )
 
     return True
