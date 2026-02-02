@@ -15,7 +15,7 @@ setup(
     author_email="phghost@mail.ru",
     url="https://github.com/Korean-DOG/receipt-recognizer-client",
     packages=find_packages(exclude=["tests", "tests.*"]),
-    python_requires=">=3.12",
+    python_requires=">=3.11",
     install_requires=[
         "requests>=2.31.0",
         "python-dotenv>=1.0.0",
